@@ -461,6 +461,9 @@ def keyboard_main():
             InlineKeyboardButton("🔗 Linkslot", callback_data="m6"),
         ],
         [
+            InlineKeyboardButton("💬 Наша группа", url="https://t.me/monitorbux"),
+        ],
+        [
             InlineKeyboardButton("💼 Добавить букс", callback_data="m7"),
         ],
     ]
