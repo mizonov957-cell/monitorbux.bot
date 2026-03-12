@@ -849,6 +849,37 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["edit_id"] = int(data[2:])
         return await query.edit_message_text("🔗 Введите новую ссылку:")
 
+    # Выбор статуса при редактировании (должен быть ПЕРЕД обработчиком ed!)
+    if data.startswith("eds_"):
+        if not is_admin_user:
+            return await query.answer("❌", show_alert=True)
+        parts = data[4:].split("_", 1)
+        bux_id = int(parts[0])
+        status_code = parts[1] if len(parts) > 1 else ""
+
+        status_map = {
+            "pay": "платит",
+            "no": "не платит",
+            "check": "проверка",
+            "elite": "элитный",
+            "new": "добавлен",
+            "empty": "",
+        }
+        status = status_map.get(status_code, "")
+
+        update_bux("description", status, bux_id)
+        await query.answer("✅ Статус обновлён", show_alert=True)
+        # Возвращаемся к выбору поля
+        buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Название", callback_data=f"en{bux_id}"),
+                InlineKeyboardButton("Ссылка", callback_data=f"eu{bux_id}"),
+            ],
+            [InlineKeyboardButton("Статус", callback_data=f"ed{bux_id}")],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="a3")],
+        ])
+        return await query.edit_message_text("✏️ Выберите поле:", reply_markup=buttons)
+
     # Редактирование - статус
     if data.startswith("ed"):
         if not is_admin_user:
@@ -872,37 +903,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⬅️ Назад", callback_data=f"e{bux_id}")],
         ])
         return await query.edit_message_text("📝 Выберите статус:", reply_markup=buttons)
-
-    # Выбор статуса при редактировании
-    if data.startswith("eds_"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
-        parts = data[4:].split("_", 1)
-        bux_id = int(parts[0])
-        status_code = parts[1] if len(parts) > 1 else ""
-        
-        status_map = {
-            "pay": "платит",
-            "no": "не платит",
-            "check": "проверка",
-            "elite": "элитный",
-            "new": "добавлен",
-            "empty": "",
-        }
-        status = status_map.get(status_code, "")
-        
-        update_bux("description", status, bux_id)
-        await query.answer("✅ Статус обновлён", show_alert=True)
-        # Возвращаемся к выбору поля
-        buttons = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("Название", callback_data=f"en{bux_id}"),
-                InlineKeyboardButton("Ссылка", callback_data=f"eu{bux_id}"),
-            ],
-            [InlineKeyboardButton("Статус", callback_data=f"ed{bux_id}")],
-            [InlineKeyboardButton("⬅️ Назад", callback_data="a3")],
-        ])
-        return await query.edit_message_text("✏️ Выберите поле:", reply_markup=buttons)
 
     # ===== МЕНЮ =====
     # Мониторинг
