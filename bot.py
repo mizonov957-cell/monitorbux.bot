@@ -253,23 +253,30 @@ async def parse_workprom():
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 "https://workprom.ru/monitor/",
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
                 timeout=30,
             ) as response:
                 html = await response.text()
 
+        logger.info(f"HTML length: {len(html)}")
         added, updated = 0, 0
         
-        # Новая структура: <td class="project-name"><a href="...">NAME</a><span class="status">STATUS</span></td>
-        pattern = r'<td class="project-name">\s*<a href="([^"]+)">([^<]+)</a>\s*<span class="status[^"]*">([^<]*)</span>'
+        # Ищем все ссылки на буксы в таблице
+        pattern = r'<a href="(https?://[^"]+)"[^>]*>([^<]+)</a>'
+        matches = re.findall(pattern, html)
+        logger.info(f"Total links found: {len(matches)}")
         
-        for match in re.findall(pattern, html):
-            url, name, status = match
+        for url, name in matches:
+            # Пропускаем не буксы
+            if any(x in url.lower() for x in ['workprom', 'register', 'login', 'profile', 'css', 'js']):
+                continue
             name = name.strip()
-            status = status.strip() or "проверка"
-            logger.info(f"Found: {name} - {status}")
-
-            # Определяем реальный URL
+            if len(name) < 2 or len(name) > 50:
+                continue
+            
+            logger.info(f"Found: {name} - {url}")
+            
+            # Определяем реальный URL из DOM_BASES
             real_url = url
             for key, base_url in DOM_BASES.items():
                 if key in url.lower():
@@ -279,13 +286,13 @@ async def parse_workprom():
             try:
                 sql_query(
                     "INSERT INTO bux(name, real_url, description) VALUES (?, ?, ?)",
-                    (name, real_url, status),
+                    (name, real_url, "добавлен"),
                 )
                 added += 1
             except sqlite3.IntegrityError:
                 sql_query(
                     "UPDATE bux SET real_url = ?, description = ? WHERE name = ?",
-                    (real_url, status, name),
+                    (real_url, "обновлен", name),
                 )
                 updated += 1
 
