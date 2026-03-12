@@ -665,21 +665,20 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        msg = "📊 Мониторинг:\n\n" + "\n\n".join(
-            f"*{b['name'].replace('_', ' ')}*\n{b['description'] or '-'}" for b in bux_list[:15]
+        
+        # Создаём кнопки для каждого букса
+        buttons = []
+        for b in bux_list[:20]:
+            buttons.append([InlineKeyboardButton(f"🌐 {b['name']}", url=b['real_url'])])
+        buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="bk")])
+        
+        msg = "📊 Мониторинг:\n\n" + "\n".join(
+            f"{i+1}. {b['name']} - {b['description'] or '-'}" 
+            for i, b in enumerate(bux_list[:20])
         )
-        try:
-            return await query.edit_message_text(
-                msg, parse_mode="Markdown", reply_markup=keyboard_back()
-            )
-        except Exception as e:
-            logger.error(f"Monitor error: {e}")
-            msg_plain = "📊 Мониторинг:\n\n" + "\n\n".join(
-                f"{b['name']}\n{b['description'] or '-'}" for b in bux_list[:15]
-            )
-            return await query.edit_message_text(
-                msg_plain, reply_markup=keyboard_back()
-            )
+        return await query.edit_message_text(
+            msg, reply_markup=InlineKeyboardMarkup(buttons)
+        )
 
     # Поиск
     if data == "m2":
