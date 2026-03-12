@@ -165,6 +165,17 @@ def init_database():
                 ("ADSBOOK", "https://adsbook.ru/", "платит"),
                 ("7BUX", "https://7bux.ru/", "платит"),
                 ("TOPBUX", "https://topbux.ru/", "платит"),
+                ("PAYMER", "https://paymer.fun/", "платит"),
+                ("PROFIT-BUX", "https://profit-bux.ru/", "платит"),
+                ("COINZI", "https://coinzi.net/", "платит"),
+                ("EXPEnt", "https://exp-megabux.ru/", "платит"),
+                ("MNMIX", "https://mnmix.ru/", "платит"),
+                ("BUXSEO", "https://buxseo.ru/", "платит"),
+                ("EXELLENT", "https://exellent.site/", "платит"),
+                ("PRODVISOTS", "https://prodvisots.ru/", "платит"),
+                ("ACASHLY", "https://www.acashly.com/", "платит"),
+                ("MAKEOUTASK", "https://makeyoutask.ru/", "платит"),
+                ("BUXOMASTER", "https://buxo.monster/", "платит"),
             ]
             for name, url, status in default_bux:
                 try:
