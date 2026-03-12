@@ -27,7 +27,6 @@ from telegram.ext import (
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MY_ADMIN_ID = int(os.getenv("ADMIN_ID", 0)) or 1241661286
 DB_PATH = os.getenv("DB_PATH", "bux.db")
-GROUP_ID = os.getenv("GROUP_ID", "")  # ID группы для публикации буксов
 
 # Настройка логирования
 logging.basicConfig(
@@ -35,9 +34,6 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
-
-# Глобальное приложение
-app = None
 
 # =============================================================================
 # АДМИН - ПРОВЕРКА ПРАВ
@@ -442,9 +438,6 @@ def keyboard_admin():
                 InlineKeyboardButton("🔗 Партнёрки", callback_data="a9"),
                 InlineKeyboardButton("⏱ Интервал", callback_data="aa"),
             ],
-            [
-                InlineKeyboardButton("📢 В группу", callback_data="ag"),
-            ],
             [InlineKeyboardButton("⬅️ Назад", callback_data="bk")],
         ]
     )
@@ -691,40 +684,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await parse_workprom()
         return await query.edit_message_text(
             f"✅ Добавлено: {result.get('added', 0)}\nОбновлено: {result.get('updated', 0)}",
-            reply_markup=keyboard_back(),
-        )
-
-    # В группу
-    if data == "ag":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
-        if not GROUP_ID:
-            return await query.answer("⚠️ GROUP_ID не настроен", show_alert=True)
-        
-        bux_list = get_all_bux()
-        if not bux_list:
-            return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        
-        await query.edit_message_text(f"📢 Отправка {len(bux_list)} буксов в группу...")
-        
-        sent = 0
-        for b in bux_list:
-            try:
-                msg = f"💰 *{b['name']}*\\n\\n{b['description'] or 'Новый букс!'}\\n\\n🔗 [Перейти]({b['real_url']})"
-                buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Посетить", url=b['real_url'])]])
-                await context.bot.send_message(
-                    chat_id=GROUP_ID,
-                    text=msg,
-                    parse_mode="Markdown",
-                    reply_markup=buttons,
-                    disable_notification=True,
-                )
-                sent += 1
-            except Exception as e:
-                logger.error(f"Ошибка отправки: {e}")
-        
-        return await query.edit_message_text(
-            f"✅ Отправлено {sent} буксов в группу",
             reply_markup=keyboard_back(),
         )
 
@@ -1079,14 +1038,11 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =============================================================================
 # ЗАПУСК
 # =============================================================================
-app = None
-
 def main():
     """Точка входа"""
     init_database()
     logger.info(f"🚀 Бот запущен! MY_ADMIN_ID={MY_ADMIN_ID}")
 
-    global app
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", cmd_start))
