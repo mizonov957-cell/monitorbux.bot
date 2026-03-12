@@ -110,6 +110,9 @@ def init_database():
             ("linkslot", "https://linkslot.ru/?ref=DMITRY967"),
         )
         
+        # Обновляем статусы всех буксов на "платит"
+        sql_query("UPDATE bux SET description = 'платит' WHERE description IS NOT NULL")
+        
         # Добавляем буксы если база пустая
         count = sql_query("SELECT COUNT(*) as c FROM bux")[0]["c"]
         if count == 0:
@@ -860,21 +863,21 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        
+
         # Получаем страницу (по умолчанию 0)
         page = context.user_data.get("m1_page", 0)
         per_page = 10
         total_pages = (len(bux_list) + per_page - 1) // per_page
-        
+
         start = page * per_page
         end = min(start + per_page, len(bux_list))
         page_items = bux_list[start:end]
-        
+
         # Создаём кнопки для каждого букса
         buttons = []
         for b in page_items:
             buttons.append([InlineKeyboardButton(f"🌐 {b['name']}", url=b['real_url'])])
-        
+
         # Кнопки навигации
         nav_buttons = []
         if page > 0:
@@ -884,9 +887,26 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if nav_buttons:
             buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="bk")])
-        
+
+        def get_status_icon(description):
+            """Иконка статуса букса"""
+            if not description:
+                return "⚪"
+            desc_lower = description.lower()
+            if "платит" in desc_lower:
+                return "✅"
+            elif "не платит" in desc_lower:
+                return "❌"
+            elif "проверка" in desc_lower:
+                return "⏳"
+            elif "элитный" in desc_lower:
+                return "💎"
+            elif "добавлен" in desc_lower or "обновлен" in desc_lower:
+                return "🆕"
+            return "⚪"
+
         msg = f"📊 Мониторинг (стр. {page+1}/{total_pages}):\n\n" + "\n".join(
-            f"{i+1}. {b['name']} - {b['description'] or '-'}" 
+            f"{get_status_icon(b['description'])} {b['name']} - {b['description'] or '-'}"
             for i, b in enumerate(page_items)
         )
         return await query.edit_message_text(
@@ -898,21 +918,21 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        
+
         page = int(data[3:])
         context.user_data["m1_page"] = page
         per_page = 10
         total_pages = (len(bux_list) + per_page - 1) // per_page
-        
+
         start = page * per_page
         end = min(start + per_page, len(bux_list))
         page_items = bux_list[start:end]
-        
+
         # Создаём кнопки для каждого букса
         buttons = []
         for b in page_items:
             buttons.append([InlineKeyboardButton(f"🌐 {b['name']}", url=b['real_url'])])
-        
+
         # Кнопки навигации
         nav_buttons = []
         if page > 0:
@@ -922,9 +942,26 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if nav_buttons:
             buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="bk")])
-        
+
+        def get_status_icon(description):
+            """Иконка статуса букса"""
+            if not description:
+                return "⚪"
+            desc_lower = description.lower()
+            if "платит" in desc_lower:
+                return "✅"
+            elif "не платит" in desc_lower:
+                return "❌"
+            elif "проверка" in desc_lower:
+                return "⏳"
+            elif "элитный" in desc_lower:
+                return "💎"
+            elif "добавлен" in desc_lower or "обновлен" in desc_lower:
+                return "🆕"
+            return "⚪"
+
         msg = f"📊 Мониторинг (стр. {page+1}/{total_pages}):\n\n" + "\n".join(
-            f"{i+1}. {b['name']} - {b['description'] or '-'}" 
+            f"{get_status_icon(b['description'])} {b['name']} - {b['description'] or '-'}"
             for i, b in enumerate(page_items)
         )
         return await query.edit_message_text(
