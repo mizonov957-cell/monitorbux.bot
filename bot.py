@@ -853,9 +853,45 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("ed"):
         if not is_admin_user:
             return
+        bux_id = int(data[2:])
         context.user_data["edit_field"] = "description"
-        context.user_data["edit_id"] = int(data[2:])
-        return await query.edit_message_text("📝 Введите новый статус:")
+        context.user_data["edit_id"] = bux_id
+        buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ Платит", callback_data=f"eds_{bux_id}_платит"),
+                InlineKeyboardButton("❌ Не платит", callback_data=f"eds_{bux_id}_не платит"),
+            ],
+            [
+                InlineKeyboardButton("⏳ Проверка", callback_data=f"eds_{bux_id}_проверка"),
+                InlineKeyboardButton("💎 Элитный", callback_data=f"eds_{bux_id}_элитный"),
+            ],
+            [
+                InlineKeyboardButton("🆕 Добавлен", callback_data=f"eds_{bux_id}_добавлен"),
+                InlineKeyboardButton("⚪ Без статуса", callback_data=f"eds_{bux_id}_"),
+            ],
+            [InlineKeyboardButton("⬅️ Назад", callback_data=f"e{bux_id}")],
+        ])
+        return await query.edit_message_text("📝 Выберите статус:", reply_markup=buttons)
+
+    # Выбор статуса при редактировании
+    if data.startswith("eds_"):
+        if not is_admin_user:
+            return await query.answer("❌", show_alert=True)
+        parts = data[4:].split("_", 1)
+        bux_id = int(parts[0])
+        status = parts[1] if len(parts) > 1 else ""
+        update_bux("description", status, bux_id)
+        await query.answer("✅ Статус обновлён", show_alert=True)
+        # Возвращаемся к выбору поля
+        buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Название", callback_data=f"en{bux_id}"),
+                InlineKeyboardButton("Ссылка", callback_data=f"eu{bux_id}"),
+            ],
+            [InlineKeyboardButton("Статус", callback_data=f"ed{bux_id}")],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="a3")],
+        ])
+        return await query.edit_message_text("✏️ Выберите поле:", reply_markup=buttons)
 
     # ===== МЕНЮ =====
     # Мониторинг
