@@ -958,7 +958,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("⬅️ Назад", callback_data="bk")],
             ]
         )
-        return await query.edit_message_text(f"🤖 Bothost\n{url}", reply_markup=buttons)
+        msg = (
+            "🤖 *Bothost* — партнёрская программа\n\n"
+            "💡 *Описание:*\n"
+            "Bothost — надёжный хостинг для ботов и сайтов.\n"
+            "Выгодные тарифы, поддержка 24/7, защита от DDoS.\n\n"
+            "💰 *Реферальная программа:*\n"
+            "Получайте % от пополнений приглашённых пользователей.\n\n"
+            f"🔗 *Ссылка:* `{url}`"
+        )
+        return await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=buttons)
 
     # Linkslot
     if data == "m6":
@@ -970,7 +979,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("⬅️ Назад", callback_data="bk")],
             ]
         )
-        return await query.edit_message_text(f"🔗 Linkslot\n{url}", reply_markup=buttons)
+        msg = (
+            "🔗 *Linkslot* — рекламная сеть\n\n"
+            "💡 *Описание:*\n"
+            "Linkslot — платформа для размещения рекламы в Telegram.\n"
+            "Биржа рекламы, посевы, продвижение каналов.\n\n"
+            "💰 *Преимущества:*\n"
+            "• Широкий выбор каналов\n"
+            "• Автоматизация размещения\n"
+            "• Выгодные условия для рекламодателей\n\n"
+            f"🔗 *Ссылка:* `{url}`"
+        )
+        return await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=buttons)
 
     # Добавить букс - инфо
     if data == "m7":
