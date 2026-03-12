@@ -74,6 +74,73 @@ def init_database():
             is_active INTEGER DEFAULT 1
         )
     """)
+    
+    # Добавляем буксы по умолчанию
+    default_bux = [
+        ("ABVIZ", "https://abviz.ru/", "элитный"),
+        ("SEO-SPRINGS", "https://seo-springs.ru/", "элитный"),
+        ("INVES-NEXT", "https://inves-next.ru/", "платит"),
+        ("DOXODCENTER", "https://www.doxodcenter.ru/", "платит"),
+        ("TONIABUX", "https://toniabux.com/", "платит"),
+        ("SEO-FAST", "https://seo-fast.ru/", "элитный"),
+        ("IPWEB", "https://www.ipweb.ru/", "элитный"),
+        ("MJPUBLIC", "https://mjpublic.com/", "платит"),
+        ("SERFEARN", "https://serfearn.com/", "платит"),
+        ("SEOLIFT", "https://seolift.pro/", "платит"),
+        ("COINBUX", "https://coinbux.ru/", "платит"),
+        ("SERFBUX", "https://serfbux.win/", "платит"),
+        ("SEO-TASK", "https://seo-task.com/", "платит"),
+        ("BIQ1", "https://biq1.ru/", "платит"),
+        ("COINPAYU", "https://www.coinpayu.com/", "платит"),
+        ("YU.SU", "https://yu.su/", "платит"),
+        ("SOLOSURF", "https://solosurf.ru/", "платит"),
+        ("SEOKLYB", "https://seoklyb.ru/", "платит"),
+        ("TASK-VISIT", "https://task-visit.ru/", "платит"),
+        ("GOLDBAX", "https://goldbax.ru/", "платит"),
+        ("A-DOVA", "https://a-dova.com/", "платит"),
+        ("SEOTIME", "https://seotime.ru/", "платит"),
+        ("SEOLAYF", "https://seolayf.top/", "платит"),
+        ("ADVEART", "https://adveart.ru/", "платит"),
+        ("ADS-TARGET", "https://ads-target.ru/", "платит"),
+        ("PROFITCENTR", "https://profitcentr.com/", "платит"),
+        ("ADSVISION", "https://adsvision.ru/", "платит"),
+        ("WMZONA", "https://wmzona.com/", "платит"),
+        ("SOOFASTBUX", "https://soofastbux.ru/", "платит"),
+        ("PROFITSERFING", "https://profitserfing.ru/", "платит"),
+        ("SURF-MINI", "https://surf-mini.ru/", "платит"),
+        ("SEOTARGET", "https://seotarget.xyz/", "платит"),
+        ("HITBUX", "https://hitbux.ru/", "платит"),
+        ("AVISO", "https://aviso.bz/", "платит"),
+        ("SERFTIME", "https://serftime.ru/", "платит"),
+        ("OJOOO", "https://ojooo.com/", "платит"),
+        ("SEO-24", "https://seo-24.pro/", "платит"),
+        ("ADBTC", "https://adbtc.top/", "платит"),
+        ("UPMONEY", "https://upmoney.ru/", "платит"),
+        ("SOCPUBLIC", "https://socpublic.com/", "платит"),
+        ("DYN-COIN", "https://dyn-coin.com/", "платит"),
+        ("WEB-IP", "https://www.web-ip.ru/", "платит"),
+        ("NEOBUX", "https://neobux.com/", "платит"),
+        ("ZOOMAD", "https://zoomad.ru/", "платит"),
+        ("WMMAIL", "https://www.wmmail.ru/i", "платит"),
+        ("HEEDYOU", "https://heedyou.com/", "платит"),
+        ("SEOSPRINT", "https://seosprint.net/", "платит"),
+        ("SEOFAST", "https://seofast.ru/", "платит"),
+        ("ADSBOOK", "https://adsbook.ru/", "платит"),
+        ("7BUX", "https://7bux.ru/", "платит"),
+        ("TOPBUX", "https://topbux.ru/", "платит"),
+    ]
+    
+    for name, url, status in default_bux:
+        try:
+            sql_query(
+                "INSERT INTO bux(name, real_url, description) VALUES (?, ?, ?)",
+                (name, url, status),
+            )
+        except sqlite3.IntegrityError:
+            pass
+    
+    logger.info(f"✅ Добавлено {len(default_bux)} буксов по умолчанию")
+    
     sql_query("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
