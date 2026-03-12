@@ -858,16 +858,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["edit_id"] = bux_id
         buttons = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("✅ Платит", callback_data=f"eds_{bux_id}_платит"),
-                InlineKeyboardButton("❌ Не платит", callback_data=f"eds_{bux_id}_не платит"),
+                InlineKeyboardButton("✅ Платит", callback_data=f"eds_{bux_id}_pay"),
+                InlineKeyboardButton("❌ Не платит", callback_data=f"eds_{bux_id}_no"),
             ],
             [
-                InlineKeyboardButton("⏳ Проверка", callback_data=f"eds_{bux_id}_проверка"),
-                InlineKeyboardButton("💎 Элитный", callback_data=f"eds_{bux_id}_элитный"),
+                InlineKeyboardButton("⏳ Проверка", callback_data=f"eds_{bux_id}_check"),
+                InlineKeyboardButton("💎 Элитный", callback_data=f"eds_{bux_id}_elite"),
             ],
             [
-                InlineKeyboardButton("🆕 Добавлен", callback_data=f"eds_{bux_id}_добавлен"),
-                InlineKeyboardButton("⚪ Без статуса", callback_data=f"eds_{bux_id}_"),
+                InlineKeyboardButton("🆕 Добавлен", callback_data=f"eds_{bux_id}_new"),
+                InlineKeyboardButton("⚪ Без статуса", callback_data=f"eds_{bux_id}_empty"),
             ],
             [InlineKeyboardButton("⬅️ Назад", callback_data=f"e{bux_id}")],
         ])
@@ -879,7 +879,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return await query.answer("❌", show_alert=True)
         parts = data[4:].split("_", 1)
         bux_id = int(parts[0])
-        status = parts[1] if len(parts) > 1 else ""
+        status_code = parts[1] if len(parts) > 1 else ""
+        
+        status_map = {
+            "pay": "платит",
+            "no": "не платит",
+            "check": "проверка",
+            "elite": "элитный",
+            "new": "добавлен",
+            "empty": "",
+        }
+        status = status_map.get(status_code, "")
+        
         update_bux("description", status, bux_id)
         await query.answer("✅ Статус обновлён", show_alert=True)
         # Возвращаемся к выбору поля
