@@ -517,13 +517,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = query.from_user.id
     data = query.data
-    await query.answer()
     is_admin_user = is_admin(uid)
     logger.info(f"CALLBACK: uid={uid} data={data} admin={is_admin_user}")
 
     # Возврат назад
     if data == "bk":
+        await query.answer()
         return await cmd_start(update, context)
+
+    await query.answer()
 
     # Админка
     if data == "a0":
@@ -980,14 +982,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         )
         msg = (
-            "🔗 *Linkslot* — рекламная сеть\n\n"
+            "🔗 *Linkslot* — рекламная платформа\n\n"
             "💡 *Описание:*\n"
-            "Linkslot — платформа для размещения рекламы в Telegram.\n"
-            "Биржа рекламы, посевы, продвижение каналов.\n\n"
-            "💰 *Преимущества:*\n"
-            "• Широкий выбор каналов\n"
-            "• Автоматизация размещения\n"
-            "• Выгодные условия для рекламодателей\n\n"
+            "Сервис для размещения рекламы и продвижения.\n\n"
             f"🔗 *Ссылка:* `{url}`"
         )
         return await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=buttons)
