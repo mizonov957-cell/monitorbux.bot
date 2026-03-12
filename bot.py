@@ -523,7 +523,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Возврат назад
     if data == "bk":
         await query.answer()
-        return await cmd_start(update, context)
+        # Отправляем новое сообщение вместо редактирования
+        await query.message.reply_text(
+            f"👋 *Привет!* {'[ADMIN]' if is_admin_user else ''}",
+            reply_markup=keyboard_main(),
+            parse_mode="Markdown",
+        )
+        return
 
     await query.answer()
 
