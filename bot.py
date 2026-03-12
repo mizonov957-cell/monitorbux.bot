@@ -30,6 +30,7 @@ from telegram.ext import (
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MY_ADMIN_ID = int(os.getenv("ADMIN_ID", 0)) or 1241661286
 DB_PATH = os.getenv("DB_PATH", "bux.db")
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")  # Секретный ключ для админки
 
 # Настройка логирования
 logging.basicConfig(
@@ -44,8 +45,17 @@ logger = logging.getLogger(__name__)
 def is_admin(uid: int) -> bool:
     """Проверка прав администратора"""
     result = uid == MY_ADMIN_ID
-    logger.info(f"admin_check: uid={uid} MY_ADMIN_ID={MY_ADMIN_ID} result={result}")
+    if not result:
+        logger.warning(f"⚠️ ПОПЫТКА ДОСТУПА К АДМИНКЕ! uid={uid} username=unknown")
     return result
+
+def log_admin_action(uid: int, username: str, action: str):
+    """Логирование действий администратора"""
+    logger.info(f"🔐 ADMIN ACTION: uid={uid} username={username} action={action}")
+
+def log_security_violation(uid: int, username: str, action: str, details: str = ""):
+    """Логирование нарушений безопасности"""
+    logger.warning(f"🚨 SECURITY VIOLATION: uid={uid} username={username} action={action} details={details}")
 
 # =============================================================================
 # БАЗА ДАННЫХ
@@ -479,15 +489,25 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /admin"""
+    """Команда /admin с защитой"""
     uid = update.effective_user.id
+    username = update.effective_user.username
     is_admin_user = is_admin(uid)
-    logger.info(f"ADMIN: uid={uid} admin={is_admin_user}")
+    
+    # Проверяем админа
     if not is_admin_user:
+        log_security_violation(uid, username or "unknown", "ACCESS_ADMIN_COMMAND", f"uid={uid}")
         await update.message.reply_text(
-            f"❌ Нет прав\nВаш ID: {uid}\nAdmin ID: {MY_ADMIN_ID}"
+            f"🚫 *ДОСТУП ЗАПРЕЩЁН*\n\n"
+            f"Ваш ID: `{uid}`\n"
+            f"Admin ID: `{MY_ADMIN_ID}`\n\n"
+            f"⚠️ Попытка входа записана в лог!",
+            parse_mode="Markdown"
         )
         return
+    
+    # Админ прошёл проверку
+    log_admin_action(uid, username or "unknown", "OPEN_ADMIN_PANEL")
     await update.message.reply_text(
         "🔧 *АДМИНКА*", reply_markup=keyboard_admin(), parse_mode="Markdown"
     )
@@ -499,9 +519,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик кнопок"""
     query = update.callback_query
     uid = query.from_user.id
+    username = query.from_user.username
     data = query.data
     is_admin_user = is_admin(uid)
-    logger.info(f"CALLBACK: uid={uid} data={data} admin={is_admin_user}")
+    logger.info(f"CALLBACK: uid={uid} username={username} data={data} admin={is_admin_user}")
 
     # Возврат назад
     if data == "bk":
@@ -514,28 +535,36 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Список админских callback_data для защиты
+    admin_callbacks = [
+        "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "aa",
+        "a2p", "a3p", "a6_start", "pb", "pl", "d", "en", "eu", "ed", "eds_"
+    ]
+    
+    # Проверка: если callback админский, а пользователь не админ
+    is_admin_callback = any(data.startswith(prefix) for prefix in admin_callbacks)
+    if is_admin_callback and not is_admin_user:
+        log_security_violation(uid, username or "unknown", "ADMIN_CALLBACK", f"data={data}")
+        await query.answer("🚫 ДОСТУП ЗАПРЕЩЁН! Вы не администратор", show_alert=True)
+        return
+
     await query.answer()
 
     # Админка
     if data == "a0":
-        if not is_admin_user:
-            return await query.edit_message_text("❌", reply_markup=keyboard_back())
+        log_admin_action(uid, username or "unknown", "ADMIN_PANEL")
         return await query.edit_message_text(
             "🔧 *АДМИНКА*", reply_markup=keyboard_admin(), parse_mode="Markdown"
         )
 
     # Добавить букс
     if data == "a1":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
+        log_admin_action(uid, username or "unknown", "ADD_BUX_START")
         context.user_data["action"] = "add_name"
         return await query.edit_message_text("➕ Введите название:", reply_markup=keyboard_back())
 
     # Выбор статуса при добавлении букса
     if data in ("stat_pay", "stat_no", "stat_check"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
-
         status_map = {
             "stat_pay": "платит",
             "stat_no": "не платит",
@@ -551,12 +580,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("action", None)
         context.user_data.pop("tmp_name", None)
         context.user_data.pop("tmp_url", None)
+        log_admin_action(uid, username or "unknown", f"ADD_BUX_COMPLETE status={status}")
         return await query.edit_message_text("✅ Добавлено!", reply_markup=keyboard_admin())
 
     # Удалить букс - список
     if data == "a2":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
@@ -591,8 +619,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Удалить букс - пагинация
     if data.startswith("a2p"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         page = int(data[3:])
         context.user_data["a2_page"] = page
 
@@ -629,8 +655,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Редактировать букс - список
     if data == "a3":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
@@ -665,8 +689,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Редактировать букс - пагинация
     if data.startswith("a3p"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         page = int(data[3:])
         context.user_data["a3_page"] = page
 
@@ -703,8 +725,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Парсинг
     if data == "a4":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         await query.edit_message_text("🔄 Парсинг...")
         result = await parse_workprom()
         return await query.edit_message_text(
@@ -714,8 +734,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Статистика админ
     if data == "a5":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         total_bux = len(get_all_bux())
         total_users = len(get_all_users())
         return await query.edit_message_text(
@@ -725,8 +743,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Рассылка - подтверждение
     if data == "a6":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         users = get_all_users()
         if not users:
             return await query.edit_message_text(
@@ -748,8 +764,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Рассылка - старт
     if data == "a6_start":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         if not context.user_data.get("broadcast_text"):
             return await query.edit_message_text(
                 "❌ Текст рассылки не установлен",
@@ -791,8 +805,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Юзеры
     if data == "a7":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         users = get_all_users()[:20]
         msg = "👥 Пользователи:\n\n" + "\n".join(
             f"@{u['username'] or '-'} ({u['id']})" for u in users
@@ -801,8 +813,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Логи парсинга
     if data == "a8":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         logs = sql_query(
             "SELECT added, updated, parsed_at FROM parse_logs ORDER BY parsed_at DESC LIMIT 10"
         )
@@ -813,8 +823,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Партнёрки
     if data == "a9":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         buttons = InlineKeyboardMarkup(
             [
                 [
@@ -828,15 +836,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Интервал
     if data == "aa":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         context.user_data["action"] = "interval"
         return await query.edit_message_text("⏱ Интервал (сек):", reply_markup=keyboard_back())
 
     # Редактировать партнёрку
     if data in ("pb", "pl"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         partner_name = "bothost" if data == "pb" else "linkslot"
         context.user_data["partner_name"] = partner_name
         context.user_data["action"] = "partner_url"
@@ -846,8 +850,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Удалить букс
     if data.startswith("d"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         bux_id = int(data[1:])
         delete_bux(bux_id)
         await query.answer("✅ Удалено", show_alert=True)
@@ -871,8 +873,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Выбор статуса при редактировании (должен быть ПЕРЕД обработчиком ed!)
     if data.startswith("eds_"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         parts = data[4:].split("_", 1)
         bux_id = int(parts[0])
         status_code = parts[1] if len(parts) > 1 else ""
@@ -926,8 +926,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Редактировать букс - выбор поля (должен быть ПОСЛЕ en, eu, eds, ed!)
     if data.startswith("e"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         bux_id = int(data[1:])
         buttons = InlineKeyboardMarkup(
             [
@@ -1068,8 +1066,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Обновить (парсинг)
     if data == "m4":
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
         await query.edit_message_text("🔄 Парсинг...")
         result = await parse_workprom()
         return await query.edit_message_text(
@@ -1135,30 +1131,45 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений"""
     uid = update.effective_user.id
+    username = update.effective_user.username
     text = update.message.text
     is_admin_user = is_admin(uid)
     action = context.user_data.get("action")
-    logger.info(f"MESSAGE: uid={uid} text={text} action={action} admin={is_admin_user}")
+    logger.info(f"MESSAGE: uid={uid} username={username} text={text} action={action} admin={is_admin_user}")
+
+    # Админские действия - защита
+    admin_actions = ["add_name", "add_url", "add_status", "broadcast", "interval", "partner_url"]
+    if action in admin_actions and not is_admin_user:
+        log_security_violation(uid, username or "unknown", "ADMIN_ACTION_MESSAGE", f"action={action} text={text[:50]}")
+        return await update.message.reply_text(
+            f"🚫 *ДОСТУП ЗАПРЕЩЁН*\n\n"
+            f"Действие `{action}` доступно только администраторам.\n"
+            f"Ваш ID: `{uid}`\n"
+            f"⚠️ Попытка записана в лог!",
+            parse_mode="Markdown"
+        )
 
     # Добавление букса - название
-    if action == "add_name" and is_admin_user:
+    if action == "add_name":
+        log_admin_action(uid, username or "unknown", f"ADD_BUX_NAME text={text[:30]}")
         context.user_data["tmp_name"] = text
         context.user_data["action"] = "add_url"
         return await update.message.reply_text("📝 Введите ссылку:", reply_markup=keyboard_back())
 
     # Добавление букса - ссылка
-    if action == "add_url" and is_admin_user:
+    if action == "add_url":
+        log_admin_action(uid, username or "unknown", f"ADD_BUX_URL text={text[:50]}")
         context.user_data["tmp_url"] = text
         context.user_data["action"] = "add_status"
         return await update.message.reply_text("📊 Выберите статус:", reply_markup=keyboard_status())
 
     # Добавление букса - статус
-    if action == "add_status" and is_admin_user:
+    if action == "add_status":
         # Статус выбирается через callback, не здесь
         return
 
     # Рассылка - ввод текста
-    if action == "broadcast" and is_admin_user:
+    if action == "broadcast":
         if len(text) > 4000:
             return await update.message.reply_text(
                 "❌ Слишком длинное сообщение (макс. 4000 симв.)\n\n"
@@ -1176,16 +1187,18 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     # Интервал (заглушка)
-    if action == "interval" and is_admin_user:
+    if action == "interval":
         context.user_data.pop("action", None)
+        log_admin_action(uid, username or "unknown", "INTERVAL_SET")
         return await update.message.reply_text("⏱ Интервал установлен", reply_markup=keyboard_admin())
 
     # Партнёрка - URL
-    if action == "partner_url" and is_admin_user:
+    if action == "partner_url":
         partner_name = context.user_data.get("partner_name", "unknown")
         set_partner(partner_name, text)
         context.user_data.pop("action", None)
         context.user_data.pop("partner_name", None)
+        log_admin_action(uid, username or "unknown", f"PARTNER_UPDATE name={partner_name}")
         return await update.message.reply_text("✅ Партнёрка обновлена", reply_markup=keyboard_admin())
 
     # Поиск
@@ -1202,13 +1215,23 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg, parse_mode="Markdown", reply_markup=keyboard_back()
         )
 
-    # Редактирование букса
+    # Редактирование букса - защита
     edit_field = context.user_data.get("edit_field")
     edit_id = context.user_data.get("edit_id")
     if edit_field and edit_id:
+        if not is_admin_user:
+            log_security_violation(uid, username or "unknown", "EDIT_BUX_MESSAGE", f"field={edit_field} id={edit_id}")
+            return await update.message.reply_text(
+                f"🚫 *ДОСТУП ЗАПРЕЩЁН*\n\n"
+                f"Редактирование доступно только администраторам.\n"
+                f"Ваш ID: `{uid}`\n"
+                f"⚠️ Попытка записана в лог!",
+                parse_mode="Markdown"
+            )
         field_map = {"name": "name", "url": "real_url", "description": "description"}
         db_field = field_map.get(edit_field, edit_field)
         update_bux(db_field, text, edit_id)
+        log_admin_action(uid, username or "unknown", f"EDIT_BUX_COMPLETE field={edit_field} id={edit_id}")
         await update.message.reply_text("✅ Обновлено!", reply_markup=keyboard_admin())
         context.user_data.pop("edit_field", None)
         context.user_data.pop("edit_id", None)
