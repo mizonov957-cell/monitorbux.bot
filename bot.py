@@ -588,11 +588,20 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
         msg = "📊 Мониторинг:\n\n" + "\n\n".join(
-            f"*{b['name']}*\n{b['description'] or '-'}" for b in bux_list[:15]
+            f"*{b['name'].replace('_', ' ')}*\n{b['description'] or '-'}" for b in bux_list[:15]
         )
-        return await query.edit_message_text(
-            msg, parse_mode="Markdown", reply_markup=keyboard_back()
-        )
+        try:
+            return await query.edit_message_text(
+                msg, parse_mode="Markdown", reply_markup=keyboard_back()
+            )
+        except Exception as e:
+            logger.error(f"Monitor error: {e}")
+            msg_plain = "📊 Мониторинг:\n\n" + "\n\n".join(
+                f"{b['name']}\n{b['description'] or '-'}" for b in bux_list[:15]
+            )
+            return await query.edit_message_text(
+                msg_plain, reply_markup=keyboard_back()
+            )
 
     # Поиск
     if data == "m2":
