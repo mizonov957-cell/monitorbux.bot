@@ -467,6 +467,18 @@ def keyboard_back():
     """Клавиатура назад"""
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data="bk")]])
 
+def keyboard_status():
+    """Выбор статуса"""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Платит", callback_data="stat_pay"),
+            InlineKeyboardButton("❌ Не платит", callback_data="stat_no"),
+        ],
+        [
+            InlineKeyboardButton("⏳ Проверка", callback_data="stat_check"),
+        ],
+    ])
+
 # =============================================================================
 # ОБРАБОТЧИКИ КОМАНД
 # =============================================================================
@@ -527,6 +539,28 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return await query.answer("❌", show_alert=True)
         context.user_data["action"] = "add_name"
         return await query.edit_message_text("➕ Введите название:", reply_markup=keyboard_back())
+
+    # Выбор статуса при добавлении букса
+    if data in ("stat_pay", "stat_no", "stat_check"):
+        if not is_admin_user:
+            return await query.answer("❌", show_alert=True)
+        
+        status_map = {
+            "stat_pay": "платит",
+            "stat_no": "не платит",
+            "stat_check": "проверка",
+        }
+        status = status_map.get(data, "проверка")
+        
+        add_bux(
+            context.user_data.get("tmp_name", "X"),
+            context.user_data.get("tmp_url", ""),
+            status,
+        )
+        context.user_data.pop("action", None)
+        context.user_data.pop("tmp_name", None)
+        context.user_data.pop("tmp_url", None)
+        return await query.edit_message_text("✅ Добавлено!", reply_markup=keyboard_admin())
 
     # Удалить букс - список
     if data == "a2":
@@ -970,10 +1004,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Добавление букса - ссылка
     if action == "add_url" and is_admin_user:
-        add_bux(context.user_data.get("tmp_name", "X"), text, "добавлен")
-        context.user_data.pop("action", None)
-        context.user_data.pop("tmp_name", None)
-        return await update.message.reply_text("✅ Добавлено!", reply_markup=keyboard_admin())
+        context.user_data["tmp_url"] = text
+        context.user_data["action"] = "add_status"
+        return await update.message.reply_text("📊 Выберите статус:", reply_markup=keyboard_status())
+
+    # Добавление букса - статус
+    if action == "add_status" and is_admin_user:
+        # Статус выбирается через callback, не здесь
+        return
 
     # Рассылка
     if action == "broadcast" and is_admin_user:
