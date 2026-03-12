@@ -816,23 +816,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("✅ Удалено", show_alert=True)
         return await cmd_admin(update, context)
 
-    # Редактировать букс - выбор поля
-    if data.startswith("e"):
-        if not is_admin_user:
-            return await query.answer("❌", show_alert=True)
-        bux_id = int(data[1:])
-        buttons = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("Название", callback_data=f"en{bux_id}"),
-                    InlineKeyboardButton("Ссылка", callback_data=f"eu{bux_id}"),
-                ],
-                [InlineKeyboardButton("Статус", callback_data=f"ed{bux_id}")],
-                [InlineKeyboardButton("⬅️ Назад", callback_data="a3")],
-            ]
-        )
-        return await query.edit_message_text("✏️ Выберите поле:", reply_markup=buttons)
-
     # Редактирование - название
     if data.startswith("en"):
         if not is_admin_user:
@@ -903,6 +886,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⬅️ Назад", callback_data=f"e{bux_id}")],
         ])
         return await query.edit_message_text("📝 Выберите статус:", reply_markup=buttons)
+
+    # Редактировать букс - выбор поля (должен быть ПОСЛЕ en, eu, eds, ed!)
+    if data.startswith("e"):
+        if not is_admin_user:
+            return await query.answer("❌", show_alert=True)
+        bux_id = int(data[1:])
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("Название", callback_data=f"en{bux_id}"),
+                    InlineKeyboardButton("Ссылка", callback_data=f"eu{bux_id}"),
+                ],
+                [InlineKeyboardButton("Статус", callback_data=f"ed{bux_id}")],
+                [InlineKeyboardButton("⬅️ Назад", callback_data="a3")],
+            ]
+        )
+        return await query.edit_message_text("✏️ Выберите поле:", reply_markup=buttons)
 
     # ===== МЕНЮ =====
     # Мониторинг
