@@ -32,7 +32,6 @@ DB_PATH = os.getenv("DB_PATH", "bux.db")
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
-    filename="logs/bot.log",
 )
 logger = logging.getLogger(__name__)
 
