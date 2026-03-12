@@ -498,13 +498,71 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
+        
+        page = context.user_data.get("a2_page", 0)
+        per_page = 10
+        total_pages = (len(bux_list) + per_page - 1) // per_page
+        
+        start = page * per_page
+        end = min(start + per_page, len(bux_list))
+        page_items = bux_list[start:end]
+        
         buttons = [
             [InlineKeyboardButton(f"🗑 {b['name'][:15]}", callback_data=f"d{b['id']}")]
-            for b in bux_list[:15]
+            for b in page_items
         ]
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"a2p{page-1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"a2p{page+1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
+        
         return await query.edit_message_text(
-            "🗑 Удалить букс:", reply_markup=InlineKeyboardMarkup(buttons)
+            f"🗑 Удалить букс (стр. {page+1}/{total_pages}):", 
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    
+    # Удалить букс - пагинация
+    if data.startswith("a2p"):
+        if not is_admin_user:
+            return await query.answer("❌", show_alert=True)
+        page = int(data[3:])
+        context.user_data["a2_page"] = page
+        
+        bux_list = get_all_bux()
+        if not bux_list:
+            return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
+        
+        per_page = 10
+        total_pages = (len(bux_list) + per_page - 1) // per_page
+        
+        start = page * per_page
+        end = min(start + per_page, len(bux_list))
+        page_items = bux_list[start:end]
+        
+        buttons = [
+            [InlineKeyboardButton(f"🗑 {b['name'][:15]}", callback_data=f"d{b['id']}")]
+            for b in page_items
+        ]
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"a2p{page-1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"a2p{page+1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
+        buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
+        
+        return await query.edit_message_text(
+            f"🗑 Удалить букс (стр. {page+1}/{total_pages}):", 
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
 
     # Редактировать букс - список
@@ -514,13 +572,71 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
+        
+        page = context.user_data.get("a3_page", 0)
+        per_page = 10
+        total_pages = (len(bux_list) + per_page - 1) // per_page
+        
+        start = page * per_page
+        end = min(start + per_page, len(bux_list))
+        page_items = bux_list[start:end]
+        
         buttons = [
             [InlineKeyboardButton(f"✏️ {b['name'][:15]}", callback_data=f"e{b['id']}")]
-            for b in bux_list[:15]
+            for b in page_items
         ]
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"a3p{page-1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"a3p{page+1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
+        
         return await query.edit_message_text(
-            "✏️ Редактировать букс:", reply_markup=InlineKeyboardMarkup(buttons)
+            f"✏️ Редактировать букс (стр. {page+1}/{total_pages}):", 
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    
+    # Редактировать букс - пагинация
+    if data.startswith("a3p"):
+        if not is_admin_user:
+            return await query.answer("❌", show_alert=True)
+        page = int(data[3:])
+        context.user_data["a3_page"] = page
+        
+        bux_list = get_all_bux()
+        if not bux_list:
+            return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
+        
+        per_page = 10
+        total_pages = (len(bux_list) + per_page - 1) // per_page
+        
+        start = page * per_page
+        end = min(start + per_page, len(bux_list))
+        page_items = bux_list[start:end]
+        
+        buttons = [
+            [InlineKeyboardButton(f"✏️ {b['name'][:15]}", callback_data=f"e{b['id']}")]
+            for b in page_items
+        ]
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"a3p{page-1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"a3p{page+1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
+        buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
+        
+        return await query.edit_message_text(
+            f"✏️ Редактировать букс (стр. {page+1}/{total_pages}):", 
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
 
     # Парсинг
@@ -666,15 +782,71 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
         
+        # Получаем страницу (по умолчанию 0)
+        page = context.user_data.get("m1_page", 0)
+        per_page = 10
+        total_pages = (len(bux_list) + per_page - 1) // per_page
+        
+        start = page * per_page
+        end = min(start + per_page, len(bux_list))
+        page_items = bux_list[start:end]
+        
         # Создаём кнопки для каждого букса
         buttons = []
-        for b in bux_list[:20]:
+        for b in page_items:
             buttons.append([InlineKeyboardButton(f"🌐 {b['name']}", url=b['real_url'])])
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"m1p{page-1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"m1p{page+1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="bk")])
         
-        msg = "📊 Мониторинг:\n\n" + "\n".join(
+        msg = f"📊 Мониторинг (стр. {page+1}/{total_pages}):\n\n" + "\n".join(
             f"{i+1}. {b['name']} - {b['description'] or '-'}" 
-            for i, b in enumerate(bux_list[:20])
+            for i, b in enumerate(page_items)
+        )
+        return await query.edit_message_text(
+            msg, reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    
+    # Мониторинг - пагинация
+    if data.startswith("m1p"):
+        bux_list = get_all_bux()
+        if not bux_list:
+            return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
+        
+        page = int(data[3:])
+        context.user_data["m1_page"] = page
+        per_page = 10
+        total_pages = (len(bux_list) + per_page - 1) // per_page
+        
+        start = page * per_page
+        end = min(start + per_page, len(bux_list))
+        page_items = bux_list[start:end]
+        
+        # Создаём кнопки для каждого букса
+        buttons = []
+        for b in page_items:
+            buttons.append([InlineKeyboardButton(f"🌐 {b['name']}", url=b['real_url'])])
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"m1p{page-1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"m1p{page+1}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
+        buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="bk")])
+        
+        msg = f"📊 Мониторинг (стр. {page+1}/{total_pages}):\n\n" + "\n".join(
+            f"{i+1}. {b['name']} - {b['description'] or '-'}" 
+            for i, b in enumerate(page_items)
         )
         return await query.edit_message_text(
             msg, reply_markup=InlineKeyboardMarkup(buttons)
