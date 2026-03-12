@@ -2,16 +2,19 @@
 # -*- coding: utf-8 -*-
 """
 Telegram Bot для мониторинга буксов
+Исправленная версия с улучшенной рассылкой
 """
 
 import os
 import logging
 import sqlite3
 import re
+import asyncio
 from datetime import datetime
 
 import aiohttp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -109,10 +112,10 @@ def init_database():
             "INSERT OR IGNORE INTO partners(name, url) VALUES (?, ?)",
             ("linkslot", "https://linkslot.ru/?ref=DMITRY967"),
         )
-        
+
         # Обновляем статусы всех буксов на "платит"
         sql_query("UPDATE bux SET description = 'платит' WHERE description IS NOT NULL")
-        
+
         # Добавляем буксы если база пустая
         count = sql_query("SELECT COUNT(*) as c FROM bux")[0]["c"]
         if count == 0:
@@ -189,7 +192,7 @@ def init_database():
                 except sqlite3.IntegrityError:
                     pass
             logger.info(f"✅ Добавлено {len(default_bux)} буксов")
-        
+
         logger.info("✅ База данных инициализирована")
     except Exception as e:
         logger.error(f"Database init error: {e}")
@@ -262,32 +265,6 @@ def set_partner(name: str, url: str):
         "INSERT OR REPLACE INTO partners(name, url) VALUES (?, ?)",
         (name, url),
     )
-
-async def send_to_group(bux_list):
-    """Отправка буксов в группу"""
-    if not GROUP_ID:
-        logger.warning("GROUP_ID не настроен")
-        return
-    
-    try:
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        
-        for b in bux_list:
-            msg = f"💰 *{b['name']}*\n\n{b['description'] or 'Новый букс!'}\n\n🔗 [Перейти]({b['real_url']})"
-            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🌐 Посетить", url=b['real_url'])]])
-            
-            try:
-                await app.bot.send_message(
-                    chat_id=GROUP_ID,
-                    text=msg,
-                    parse_mode="Markdown",
-                    reply_markup=buttons,
-                )
-                logger.info(f"Отправлено в группу: {b['name']}")
-            except Exception as e:
-                logger.error(f"Ошибка отправки в группу: {e}")
-    except Exception as e:
-        logger.error(f"Send to group error: {e}")
 
 # =============================================================================
 # ПАРСЕР
@@ -370,12 +347,12 @@ async def parse_workprom():
 
         logger.info(f"HTML length: {len(html)}")
         added, updated = 0, 0
-        
+
         # Ищем все ссылки на буксы в таблице
         pattern = r'<a href="(https?://[^"]+)"[^>]*>([^<]+)</a>'
         matches = re.findall(pattern, html)
         logger.info(f"Total links found: {len(matches)}")
-        
+
         for url, name in matches:
             # Пропускаем не буксы
             if any(x in url.lower() for x in ['workprom', 'register', 'login', 'profile', 'css', 'js']):
@@ -383,9 +360,9 @@ async def parse_workprom():
             name = name.strip()
             if len(name) < 2 or len(name) > 50:
                 continue
-            
+
             logger.info(f"Found: {name} - {url}")
-            
+
             # Определяем реальный URL из DOM_BASES
             real_url = url
             for key, base_url in DOM_BASES.items():
@@ -558,14 +535,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data in ("stat_pay", "stat_no", "stat_check"):
         if not is_admin_user:
             return await query.answer("❌", show_alert=True)
-        
+
         status_map = {
             "stat_pay": "платит",
             "stat_no": "не платит",
             "stat_check": "проверка",
         }
         status = status_map.get(data, "проверка")
-        
+
         add_bux(
             context.user_data.get("tmp_name", "X"),
             context.user_data.get("tmp_url", ""),
@@ -583,20 +560,20 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        
+
         page = context.user_data.get("a2_page", 0)
         per_page = 10
         total_pages = (len(bux_list) + per_page - 1) // per_page
-        
+
         start = page * per_page
         end = min(start + per_page, len(bux_list))
         page_items = bux_list[start:end]
-        
+
         buttons = [
             [InlineKeyboardButton(f"🗑 {b['name'][:15]}", callback_data=f"d{b['id']}")]
             for b in page_items
         ]
-        
+
         # Кнопки навигации
         nav_buttons = []
         if page > 0:
@@ -606,35 +583,35 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if nav_buttons:
             buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
-        
+
         return await query.edit_message_text(
-            f"🗑 Удалить букс (стр. {page+1}/{total_pages}):", 
+            f"🗑 Удалить букс (стр. {page+1}/{total_pages}):",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
-    
+
     # Удалить букс - пагинация
     if data.startswith("a2p"):
         if not is_admin_user:
             return await query.answer("❌", show_alert=True)
         page = int(data[3:])
         context.user_data["a2_page"] = page
-        
+
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        
+
         per_page = 10
         total_pages = (len(bux_list) + per_page - 1) // per_page
-        
+
         start = page * per_page
         end = min(start + per_page, len(bux_list))
         page_items = bux_list[start:end]
-        
+
         buttons = [
             [InlineKeyboardButton(f"🗑 {b['name'][:15]}", callback_data=f"d{b['id']}")]
             for b in page_items
         ]
-        
+
         # Кнопки навигации
         nav_buttons = []
         if page > 0:
@@ -644,9 +621,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if nav_buttons:
             buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
-        
+
         return await query.edit_message_text(
-            f"🗑 Удалить букс (стр. {page+1}/{total_pages}):", 
+            f"🗑 Удалить букс (стр. {page+1}/{total_pages}):",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
 
@@ -657,20 +634,20 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        
+
         page = context.user_data.get("a3_page", 0)
         per_page = 10
         total_pages = (len(bux_list) + per_page - 1) // per_page
-        
+
         start = page * per_page
         end = min(start + per_page, len(bux_list))
         page_items = bux_list[start:end]
-        
+
         buttons = [
             [InlineKeyboardButton(f"✏️ {b['name'][:15]}", callback_data=f"e{b['id']}")]
             for b in page_items
         ]
-        
+
         # Кнопки навигации
         nav_buttons = []
         if page > 0:
@@ -680,35 +657,35 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if nav_buttons:
             buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
-        
+
         return await query.edit_message_text(
-            f"✏️ Редактировать букс (стр. {page+1}/{total_pages}):", 
+            f"✏️ Редактировать букс (стр. {page+1}/{total_pages}):",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
-    
+
     # Редактировать букс - пагинация
     if data.startswith("a3p"):
         if not is_admin_user:
             return await query.answer("❌", show_alert=True)
         page = int(data[3:])
         context.user_data["a3_page"] = page
-        
+
         bux_list = get_all_bux()
         if not bux_list:
             return await query.edit_message_text("❌ Пусто", reply_markup=keyboard_back())
-        
+
         per_page = 10
         total_pages = (len(bux_list) + per_page - 1) // per_page
-        
+
         start = page * per_page
         end = min(start + per_page, len(bux_list))
         page_items = bux_list[start:end]
-        
+
         buttons = [
             [InlineKeyboardButton(f"✏️ {b['name'][:15]}", callback_data=f"e{b['id']}")]
             for b in page_items
         ]
-        
+
         # Кнопки навигации
         nav_buttons = []
         if page > 0:
@@ -718,9 +695,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if nav_buttons:
             buttons.append(nav_buttons)
         buttons.append([InlineKeyboardButton("⬅️ Назад", callback_data="a0")])
-        
+
         return await query.edit_message_text(
-            f"✏️ Редактировать букс (стр. {page+1}/{total_pages}):", 
+            f"✏️ Редактировать букс (стр. {page+1}/{total_pages}):",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
 
@@ -746,14 +723,71 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=keyboard_back(),
         )
 
-    # Рассылка
+    # Рассылка - подтверждение
     if data == "a6":
         if not is_admin_user:
             return await query.answer("❌", show_alert=True)
-        context.user_data["action"] = "broadcast"
+        users = get_all_users()
+        if not users:
+            return await query.edit_message_text(
+                "❌ Нет пользователей для рассылки",
+                reply_markup=keyboard_back()
+            )
+        buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ Начать рассылку", callback_data="a6_start"),
+                InlineKeyboardButton("⬅️ Назад", callback_data="a0"),
+            ],
+        ])
         return await query.edit_message_text(
-            "📢 Введите текст рассылки:", reply_markup=keyboard_back()
+            f"📢 Рассылка по {len(users)} пользователям.\n\n"
+            f"⚠️ Макс. длина: 4000 симв.\n\n"
+            f"Введите текст рассылки:",
+            reply_markup=buttons
         )
+
+    # Рассылка - старт
+    if data == "a6_start":
+        if not is_admin_user:
+            return await query.answer("❌", show_alert=True)
+        if not context.user_data.get("broadcast_text"):
+            return await query.edit_message_text(
+                "❌ Текст рассылки не установлен",
+                reply_markup=keyboard_back()
+            )
+        text = context.user_data.pop("broadcast_text")
+        await query.edit_message_text("🔄 Отправка рассылки...")
+        
+        users = get_all_users()
+        ok, fail, blocked = 0, 0, 0
+        
+        for i, user in enumerate(users):
+            try:
+                await context.bot.send_message(user["id"], f"📢 {text}")
+                ok += 1
+            except BadRequest as e:
+                if "bot was blocked" in str(e).lower() or "blocked" in str(e).lower():
+                    blocked += 1
+                    logger.warning(f"Bot blocked by user {user['id']} ({user['username']})")
+                else:
+                    fail += 1
+                    logger.error(f"Broadcast BadRequest: {e} for user {user['id']}")
+            except Exception as e:
+                fail += 1
+                logger.error(f"Broadcast error: {e} for user {user['id']}")
+            
+            # Пауза для избежания rate limit
+            if (i + 1) % 10 == 0:
+                await asyncio.sleep(0.1)
+        
+        add_broadcast(text)
+        
+        result_msg = f"✅ Рассылка завершена\n\n"
+        result_msg += f"📤 Отправлено: {ok}\n"
+        result_msg += f"❌ Ошибок: {fail}\n"
+        result_msg += f"🚫 Заблокировали: {blocked}"
+        
+        return await query.edit_message_text(result_msg, reply_markup=keyboard_admin())
 
     # Юзеры
     if data == "a7":
@@ -962,7 +996,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await query.edit_message_text(
             msg, reply_markup=InlineKeyboardMarkup(buttons)
         )
-    
+
     # Мониторинг - пагинация
     if data.startswith("m1p"):
         bux_list = get_all_bux()
@@ -1123,22 +1157,22 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Статус выбирается через callback, не здесь
         return
 
-    # Рассылка
+    # Рассылка - ввод текста
     if action == "broadcast" and is_admin_user:
-        users = get_all_users()
-        ok, fail = 0, 0
-        for user in users:
-            try:
-                await context.bot.send_message(user["id"], f"📢 {text}")
-                ok += 1
-            except Exception as e:
-                logger.error(f"Broadcast error: {e}")
-                fail += 1
-        add_broadcast(text)
+        if len(text) > 4000:
+            return await update.message.reply_text(
+                "❌ Слишком длинное сообщение (макс. 4000 симв.)\n\n"
+                f"Ваш текст: {len(text)} симв.\n\n"
+                f"Сократите на {len(text) - 4000} симв.",
+                reply_markup=keyboard_back()
+            )
+        context.user_data["broadcast_text"] = text
         context.user_data.pop("action", None)
         return await update.message.reply_text(
-            f"✅ Рассылка завершена\nОтправлено: {ok}\nОшибок: {fail}",
-            reply_markup=keyboard_admin(),
+            "✅ Текст сохранён!\n\n"
+            f"Длина: {len(text)} симв.\n\n"
+            f"Нажмите '📢 Рассылка' в меню админа для отправки.",
+            reply_markup=keyboard_admin()
         )
 
     # Интервал (заглушка)
