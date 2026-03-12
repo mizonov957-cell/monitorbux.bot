@@ -258,19 +258,15 @@ async def parse_workprom():
             ) as response:
                 html = await response.text()
 
-        logger.info(f"HTML length: {len(html)}")
-        
         added, updated = 0, 0
-        pattern = r'<tr.*?<a href="([^"]+)".*?>([^<]+)</a>.*?<td.*?>([^<]*)</td>'
-        matches = re.findall(pattern, html, re.DOTALL)
-        logger.info(f"Found matches: {len(matches)}")
         
-        for match in matches:
+        # Новая структура: <td class="project-name"><a href="...">NAME</a><span class="status">STATUS</span></td>
+        pattern = r'<td class="project-name">\s*<a href="([^"]+)">([^<]+)</a>\s*<span class="status[^"]*">([^<]*)</span>'
+        
+        for match in re.findall(pattern, html):
             url, name, status = match
             name = name.strip()
-            if not name:
-                continue
-            status = re.sub(r"<.*?>", "", status).strip() or "проверка"
+            status = status.strip() or "проверка"
             logger.info(f"Found: {name} - {status}")
 
             # Определяем реальный URL
