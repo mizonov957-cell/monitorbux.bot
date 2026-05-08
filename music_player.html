@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Необычный Музыкальный Плеер</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            z-index: 10;
+        }
+
+        .player {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .vinyl {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
+            margin: 0 auto 30px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: none;
+        }
+
+        .vinyl.playing {
+            animation: spin 3s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .vinyl::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, #e94560, #ff6b6b);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+        }
+
+        .vinyl::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: #1a1a2e;
+            border-radius: 50%;
+        }
+
+        .song-info {
+            margin-bottom: 30px;
+        }
+
+        .song-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .artist {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+
+        .progress-container {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            height: 8px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress {
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            height: 100%;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.1s ease;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn:hover {
+            background: rgba(233, 69, 96, 0.3);
+            border-color: #e94560;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+        }
+
+        .btn-play {
+            width: 80px;
+            height: 80px;
+            font-size: 24px;
+            background: linear-gradient(145deg, #e94560, #ff6b6b);
+            border: none;
+        }
+
+        .btn-play:hover {
+            background: linear-gradient(145deg, #ff6b6b, #e94560);
+            transform: scale(1.15);
+        }
+
+        .volume-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            width: 150px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e94560;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+        }
+
+        .playlist {
+            margin-top: 30px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .playlist-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .playlist-item:hover {
+            background: rgba(233, 69, 96, 0.2);
+            transform: translateX(5px);
+        }
+
+        .playlist-item.active {
+            background: rgba(233, 69, 96, 0.4);
+            border-left: 3px solid #e94560;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .upload-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            display: inline-block;
+        }
+
+        .upload-btn:hover {
+            background: rgba(233, 69, 96, 0.2);
+            border-color: #e94560;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .visualizer-mode {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .mode-btn.active {
+            background: #e94560;
+            border-color: #e94560;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #e94560;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="visualizer"></canvas>
+    
+    <div class="container">
+        <div class="player">
+            <div class="vinyl" id="vinyl"></div>
+            
+            <div class="song-info">
+                <div class="song-title" id="song-title">Выберите трек</div>
+                <div class="artist" id="artist">Загрузите музыку</div>
+            </div>
+
+            <div class="progress-container" id="progress-container">
+                <div class="progress" id="progress"></div>
+            </div>
+
+            <div class="time-display">
+                <span id="current-time">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+
+            <div class="controls">
+                <button class="btn" id="prev-btn">⏮</button>
+                <button class="btn btn-play" id="play-btn">▶</button>
+                <button class="btn" id="next-btn">⏭</button>
+            </div>
+
+            <div class="volume-container">
+                <span>🔈</span>
+                <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="70">
+                <span>🔊</span>
+            </div>
+
+            <div class="visualizer-mode">
+                <button class="mode-btn active" data-mode="bars">Бары</button>
+                <button class="mode-btn" data-mode="circle">Круг</button>
+                <button class="mode-btn" data-mode="wave">Волна</button>
+                <button class="mode-btn" data-mode="particles">Частицы</button>
+            </div>
+
+            <div class="playlist" id="playlist"></div>
+
+            <label class="upload-btn" for="file-input">
+                📁 Загрузить музыку
+            </label>
+            <input type="file" id="file-input" accept="audio/*" multiple>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context и элементы
+        let audioContext;
+        let analyser;
+        let source;
+        let isPlaying = false;
+        let currentSongIndex = 0;
+        let playlist = [];
+        
+        const audio = new Audio();
+        audio.crossOrigin = "anonymous";
+
+        // Элементы DOM
+        const playBtn = document.getElementById('play-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const vinyl = document.getElementById('vinyl');
+        const progress = document.getElementById('progress');
+        const progressContainer = document.getElementById('progress-container');
+        const currentTimeEl = document.getElementById('current-time');
+        const durationEl = document.getElementById('duration');
+        const volumeSlider = document.getElementById('volume-slider');
+        const songTitle = document.getElementById('song-title');
+        const artist = document.getElementById('artist');
+        const playlistEl = document.getElementById('playlist');
+        const fileInput = document.getElementById('file-input');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+
+        let visualizerMode = 'bars';
+        let particles = [];
+
+        // Настройка canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Инициализация Audio Context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                source = audioContext.createMediaElementSource(audio);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                analyser.fftSize = 256;
+            }
+        }
+
+        // Загрузка файлов
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const url = URL.createObjectURL(file);
+                const name = file.name.replace(/\.[^/.]+$/, "");
+                playlist.push({ name, url, artist: 'Неизвестный артист' });
+            });
+            renderPlaylist();
+            if (playlist.length > 0 && !isPlaying) {
+                loadSong(playlist.length - files.length);
+            }
+        });
+
+        // Рендер плейлиста
+        function renderPlaylist() {
+            playlistEl.innerHTML = '';
+            playlist.forEach((song, index) => {
+                const item = document.createElement('div');
+                item.className = `playlist-item ${index === currentSongIndex ? 'active' : ''}`;
+                item.textContent = song.name;
+                item.addEventListener('click', () => {
+                    loadSong(index);
+                    playSong();
+                });
+                playlistEl.appendChild(item);
+            });
+        }
+
+        // Загрузка песни
+        function loadSong(index) {
+            if (index < 0 || index >= playlist.length) return;
+            currentSongIndex = index;
+            const song = playlist[index];
+            songTitle.textContent = song.name;
+            artist.textContent = song.artist;
+            audio.src = song.url;
+            renderPlaylist();
+        }
+
+        // Воспроизведение
+        function playSong() {
+            initAudioContext();
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            audio.play();
+            isPlaying = true;
+            playBtn.textContent = '⏸';
+            vinyl.classList.add('playing');
+            animateVisualizer();
+        }
+
+        // Пауза
+        function pauseSong() {
+            audio.pause();
+            isPlaying = false;
+            playBtn.textContent = '▶';
+            vinyl.classList.remove('playing');
+        }
+
+        // Переключение воспроизведения
+        playBtn.addEventListener('click', () => {
+            if (playlist.length === 0) {
+                alert('Сначала загрузите музыку!');
+                return;
+            }
+            if (isPlaying) {
+                pauseSong();
+            } else {
+                playSong();
+            }
+        });
+
+        // Предыдущая/Следующая
+        prevBtn.addEventListener('click', () => {
+            if (currentSongIndex > 0) {
+                loadSong(currentSongIndex - 1);
+                if (isPlaying) playSong();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentSongIndex < playlist.length - 1) {
+                loadSong(currentSongIndex + 1);
+                if (isPlaying) playSong();
+            }
+        });
+
+        // Прогресс бар
+        audio.addEventListener('timeupdate', (e) => {
+            const { duration, currentTime } = e.target;
+            if (isNaN(duration)) return;
+            const progressPercent = (currentTime / duration) * 100;
+            progress.style.width = `${progressPercent}%`;
+            currentTimeEl.textContent = formatTime(currentTime);
+            durationEl.textContent = formatTime(duration);
+        });
+
+        audio.addEventListener('ended', () => {
+            if (currentSongIndex < playlist.length - 1) {
+                loadSong(currentSongIndex + 1);
+                playSong();
+            } else {
+                pauseSong();
+            }
+        });
+
+        progressContainer.addEventListener('click', (e) => {
+            const width = progressContainer.clientWidth;
+            const clickX = e.offsetX;
+            const duration = audio.duration;
+            if (!isNaN(duration)) {
+                audio.currentTime = (clickX / width) * duration;
+            }
+        });
+
+        // Громкость
+        volumeSlider.addEventListener('input', (e) => {
+            audio.volume = e.target.value / 100;
+        });
+
+        // Форматирование времени
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Визуализатор
+        function createParticles() {
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 3 + 1,
+                    speedX: Math.random() * 2 - 1,
+                    speedY: Math.random() * 2 - 1,
+                    hue: Math.random() * 360
+                });
+            }
+        }
+
+        function drawBars(bufferLength, dataArray) {
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+                const hue = (i / bufferLength) * 360;
+                
+                ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.8)`;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                
+                ctx.fillStyle = `hsla(${hue}, 100%, 70%, 0.5)`;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, 5);
+                
+                x += barWidth + 1;
+            }
+        }
+
+        function drawCircle(bufferLength, dataArray) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = 150;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const value = dataArray[i];
+                const angle = (i / bufferLength) * Math.PI * 2;
+                const barHeight = (value / 255) * 200;
+                const hue = (i / bufferLength) * 360;
+
+                const x1 = centerX + Math.cos(angle) * radius;
+                const y1 = centerY + Math.sin(angle) * radius;
+                const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+                const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+
+                ctx.strokeStyle = `hsla(${hue}, 100%, 50%, 0.8)`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        function drawWave(bufferLength, dataArray) {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#e94560';
+            ctx.beginPath();
+
+            const sliceWidth = canvas.width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = (v * canvas.height) / 2;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+
+            // Зеркальное отражение
+            ctx.strokeStyle = 'rgba(233, 69, 96, 0.3)';
+            ctx.beginPath();
+            x = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = canvas.height - (v * canvas.height) / 2;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+            ctx.stroke();
+        }
+
+        function drawParticles(bufferLength, dataArray) {
+            const bass = dataArray.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
+            
+            particles.forEach((p, index) => {
+                p.x += p.speedX * (bass / 50);
+                p.y += p.speedY * (bass / 50);
+                p.hue = (p.hue + 1) % 360;
+
+                if (p.x < 0 || p.x > canvas.width) p.speedX *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.speedY *= -1;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * (bass / 100), 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${p.hue}, 100%, 50%, 0.6)`;
+                ctx.fill();
+
+                // Соединительные линии
+                particles.forEach((p2, index2) => {
+                    if (index !== index2) {
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < 100) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = `hsla(${p.hue}, 100%, 50%, ${0.2 * (1 - distance / 100)})`;
+                            ctx.lineWidth = 1;
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    }
+                });
+            });
+        }
+
+        function animateVisualizer() {
+            if (!isPlaying) return;
+
+            requestAnimationFrame(animateVisualizer);
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            ctx.fillStyle = 'rgba(26, 26, 46, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            switch (visualizerMode) {
+                case 'bars':
+                    drawBars(bufferLength, dataArray);
+                    break;
+                case 'circle':
+                    drawCircle(bufferLength, dataArray);
+                    break;
+                case 'wave':
+                    drawWave(bufferLength, dataArray);
+                    break;
+                case 'particles':
+                    drawParticles(bufferLength, dataArray);
+                    break;
+            }
+        }
+
+        // Выбор режима визуализации
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                visualizerMode = btn.dataset.mode;
+                if (visualizerMode === 'particles' && particles.length === 0) {
+                    createParticles();
+                }
+            });
+        });
+
+        // Инициализация частиц
+        createParticles();
+
+        // Демо плейлист (можно удалить)
+        console.log('🎵 Загрузите свои аудиофайлы для воспроизведения');
+    </script>
+</body>
+</html>
